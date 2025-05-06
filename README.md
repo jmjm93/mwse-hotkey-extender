@@ -1,0 +1,1 @@
+A Morrowind MWSE-lua script for a hotkey extender mod

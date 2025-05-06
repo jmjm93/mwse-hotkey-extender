@@ -25,11 +25,24 @@ local menuId = -770
 local currentChildId = menuId - 1;
 
 local hotkeys = config.hotkeys
-local hotkeysNum = 1
 
 local function getId()
     currentChildId = currentChildId - 1
     return currentChildId
+end
+
+
+local function commitChanges()
+    local output = {}
+    for _,hotkey in ipairs(hotkeys) do
+        output[_] = {
+            object = hotkey.object,
+            actionType = hotkey.actionType,
+            actionId = hotkey.actionId,
+            keyName = hotkey.keyName
+        }
+    end
+    mwse.saveConfig("hotkeyExtender.config", { hotkeys = output })
 end
 
 -- helper --
@@ -85,35 +98,42 @@ local function renderHotkeyField()
             id = getId(),
             text = (hotkey.action and hotkey.action.name or "Set Action")
         })
-            actionButton:register(tes3.uiEvent.mouseClick, function(e)
-                tes3ui.showMagicSelectMenu({
-                    id = getId(),
-                    title = "Select Action",
-                    selectSpells = true,
-                    selectPowers = true,
-                    selectEnchanted = true,
-                    callback = function(e)
-                        hotkey.action = e.spell and e.spell or (e.item and e.item or nil)
-                        hotkey.actionId = e.spell and e.spell.id or e.item.id
-                        hotkey.actionType = e.spell and "spell" or "item"
-                        actionButton.text = hotkey.action.name
-                        renderHotkeyField()
-                        if hotkey.action and hotkey.object then mwse.saveConfig("hotkeyExtender", { hotkeys = hotkeys }) end
-                    end
-                })
+        actionButton:register(tes3.uiEvent.mouseClick, function(e)
+            tes3ui.showMagicSelectMenu({
+                id = getId(),
+                title = "Select Action",
+                selectSpells = true,
+                selectPowers = true,
+                selectEnchanted = true,
+                callback = function(e)
+                    hotkey.action = e.spell and e.spell or (e.item and e.item or nil)
+                    hotkey.actionId = e.spell and e.spell.id or e.item.id
+                    hotkey.actionType = e.spell and "spell" or "item"
+                    actionButton.text = hotkey.action.name
+                    renderHotkeyField()
+                    if hotkey.action and hotkey.object then commitChanges() end
+                end
+            })
             end)
+        local deleteButton = hotkeyField:createButton({
+            id = getId(),
+            text = "Delete"
+        })
+        deleteButton:register(tes3.uiEvent.mouseClick, function(e)
+            table.remove(hotkeys, _)
+            renderHotkeyField()
+        end)
     end
     hotkeyField:getContentElement():updateLayout()
     menu:updateLayout()
 end
 
 local function addCb(e)
-    hotkeys[hotkeysNum] = {
+    table.insert(hotkeys, {
         object = nil,
         keyName = null,
         action = nil
-    }
-    hotkeysNum = hotkeysNum + 1
+    })
     renderHotkeyField()
 end
 
@@ -147,7 +167,7 @@ local function renderMenu()
     okButton:register(tes3.uiEvent.mouseClick, closeMenu)
 end
 
-local function openMenu()
+local function setupConfigHotkeys()
     if hotkeys[1] ~= nil then
         for _, hotkey in ipairs(hotkeys) do
             if hotkey.actionType == "spell" then
@@ -160,14 +180,18 @@ local function openMenu()
                 end
             end
             if hotkey.actionType == "item" then
-                for _,item in tes3.mobilePlayer.inventory do
-                    if(item.id == hotkey.actionId) then
-                        hotkey.action = item
+                for __,item in ipairs(tes3.mobilePlayer.inventory) do
+                    if(item.object.id == hotkey.actionId) then
+                        hotkey.action = item.object
+                        break
                     end
                 end
             end
         end
     end
+end
+
+local function openMenu()
     state = _STATE.OPEN
     menu = tes3ui.createMenu({
         id = menuId,
@@ -184,20 +208,16 @@ end
 local function keybindPressed(key)
     for _, hotkey in ipairs(hotkeys) do
         if hotkey.object.keyCode == key.keyCode then
-            if hotkey.action.actionType == "spell" then 
-                tes3.player.mobile:equipMagic({
-                source = hotkey.action
+            tes3.player.mobile:equipMagic({
+            source = hotkey.action, equipItem = hotkey.actionType == 'item'
             })
-            else 
-                tes3.player.mobile:equip({
-                    item = hotkey.action
-                })
-            end
         end
     end
 end
 
+
 local function hotkeyReplacer(e)
+    setupConfigHotkeys()
     if state == _STATE.NORMAL then
         if not tes3.isKeyEqual({
             expected = combo,
@@ -231,7 +251,7 @@ local function hotkeyReplacer(e)
         end
         state = _STATE.NORMAL
         renderHotkeyField()
-        if listeningHotkey.action and listeningHotkey.object then mwse.saveConfig("hotkeyExtender.config", { hotkeys = hotkeys }) end
+        if listeningHotkey.action and listeningHotkey.object then commitChanges() end
     end
 end
 

@@ -219,7 +219,7 @@ local function keybindPressed(key)
 end
 
 
-local function hotkeyReplacer(e)
+local function main(e)
     setupConfigHotkeys()
     if state == _STATE.NORMAL then
         if not tes3.isKeyEqual({
@@ -260,7 +260,7 @@ end
 
 local function initialized()
     
-    event.register(tes3.event.keyDown, hotkeyReplacer)
+    event.register(tes3.event.keyDown, main)
 end
 
 event.register(tes3.event.initialized, initialized)

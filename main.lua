@@ -18,18 +18,11 @@ local state = _STATE.NORMAL
 local listeningHotkeyIndex = nil
 
 local menu = nil
+local hotkeyContainer = nil
 local hotkeyField = nil
 local listeningKeyPopup = nil
 
-local menuId = -770
-local currentChildId = menuId - 1;
-
 local hotkeys = config.hotkeys
-
-local function getId()
-    currentChildId = currentChildId - 1
-    return currentChildId
-end
 
 
 local function commitChanges()
@@ -74,38 +67,40 @@ local function renderHotkeyField()
             hotkeyField:createDivider()
         end
         local hotkeyLabel = hotkeyField:createLabel({
-            id = getId(),
+            id = "hotkey-name-btn",
             text = hotkey.object and "Hotkey " .. _ or "New hotkey"
         })
         local hotkeyButton = hotkeyField:createButton({
-            id = getId(),
+            id = "hotkey-key-btn",
             text = hotkey.object and string.upper(hotkey.keyName) or "Select key"
         })
         hotkeyButton:register(tes3.uiEvent.mouseClick, function(e)
             state = _STATE.LISTENING
-            listeningKeyPopup = tes3ui.createMenu({ id = getId(),
+            listeningKeyPopup = tes3ui.createMenu({ id = "listening-key-popup",
             dragFrame = false,
             fixedFrame = true,
             modal = true,
             loadable = false })
-            listeningKeyPopup:createLabel({ id = getId(), text = "Press the key you want to bind" })
+            listeningKeyPopup:createLabel({ id = "listening-key-popup-text", text = "Press the key you want to bind" })
             listeningHotkeyIndex = _
             hotkey._button = hotkeyButton
             hotkey._label = hotkeyLabel
             hotkeyButton.text = "Listening..."
         end)
         local actionButton = hotkeyField:createButton({
-            id = getId(),
+            id = "action-select-btn",
             text = (hotkey.action and hotkey.action.name or "Set Action")
         })
         actionButton:register(tes3.uiEvent.mouseClick, function(e)
+            menu.visible = false
             tes3ui.showMagicSelectMenu({
-                id = getId(),
+                id = "action-selector-menu",
                 title = "Select Action",
                 selectSpells = true,
                 selectPowers = true,
                 selectEnchanted = true,
                 callback = function(e)
+                    menu.visible = true
                     hotkey.action = e.spell and e.spell or (e.item and e.item or nil)
                     hotkey.actionId = e.spell and e.spell.id or e.item.id
                     hotkey.actionType = e.spell and "spell" or "item"
@@ -116,7 +111,7 @@ local function renderHotkeyField()
             })
             end)
         local deleteButton = hotkeyField:createButton({
-            id = getId(),
+            id = "hotkey-delete-btn",
             text = "Delete"
         })
         deleteButton:register(tes3.uiEvent.mouseClick, function(e)
@@ -124,8 +119,7 @@ local function renderHotkeyField()
             renderHotkeyField()
         end)
     end
-    hotkeyField:getContentElement():updateLayout()
-    menu:updateLayout()
+    hotkeyContainer:updateLayout()
 end
 
 local function addCb(e)
@@ -142,26 +136,34 @@ local function renderMenu()
         return
     end
     menu:createLabel({
-        id = getId(),
+        id = "hotkey-map-title",
         text = "Hotkey Map"
     })
-    hotkeyField = menu:createThinBorder({
-        id = getId()
-    });
-    hotkeyField.height = 400;
-    hotkeyField.width = 200;
+    hotkeyContainer = menu:createVerticalScrollPane{
+        id = 'hotkey-container'
+    };
+    hotkeyContainer.width = 400
+    hotkeyContainer.heightProportional = nil
+    hotkeyContainer.widthProportional = nil
+    hotkeyContainer.height = 400
+    hotkeyContainer.maxHeight = 400
+    hotkeyContainer.borderAllSides = 4
+    hotkeyField = hotkeyContainer:getContentElement();
     hotkeyField.flowDirection = tes3.flowDirection.topToBottom;
     local addHotkey = menu:createButton({
-        id = getId(),
+        id = 'add-hotkey-btn',
         text = "Add hotkey"
     })
     addHotkey:register(tes3.uiEvent.mouseClick, addCb)
     local resetButton = menu:createButton({
-        id = getId(),
+        id = 'reset-hotkeys-btn',
         text = "Reset all"
     })
+    resetButton:register(tes3.uiEvent.mouseClick, function(e)
+        renderHotkeyField()
+    end)
     local okButton = menu:createButton({
-        id = getId(),
+        id = 'close-btn',
         text = "Finish"
     })
     okButton:register(tes3.uiEvent.mouseClick, closeMenu)
@@ -194,7 +196,7 @@ end
 local function openMenu()
     state = _STATE.OPEN
     menu = tes3ui.createMenu({
-        id = menuId,
+        id = "extended-hotkeys-menu",
         dragFrame = false,
         fixedFrame = true,
         modal = true,
@@ -202,6 +204,7 @@ local function openMenu()
     })
     tes3ui.enterMenuMode(menuId)
     renderMenu()
+    renderHotkeyField()
     renderHotkeyField()
 end
 

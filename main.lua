@@ -260,8 +260,17 @@ local function isNativeKeybind(key)
             return true
         end
     end
+    return false
 end
 
+local function fetchKeybindFromKey(key)
+    for _, hotkey in ipairs(hotkeys) do
+        if hotkey.object and hotkey.object.keyCode == key.keyCode then
+            return hotkey
+        end
+    end
+    return nil
+end
 
 local function main(e)
     setupConfigHotkeys()
@@ -270,7 +279,7 @@ local function main(e)
             expected = f2Key,
             actual = e
         }) then
-            keybindPressed(e)
+            if not tes3.menuMode() then keybindPressed(e) end
             return
         end
         openMenu()
@@ -287,6 +296,11 @@ local function main(e)
         end
         if isNativeKeybind(e) then
             tes3.messageBox("This key is already bound to a native action.")
+            return
+        end
+        local alreadyBound = fetchKeybindFromKey(e)
+        if alreadyBound then
+            tes3.messageBox("This key is already bound to " .. (alreadyBound.action and alreadyBound.action.name or "an action"))
             return
         end
         local listeningHotkey = hotkeys[listeningHotkeyIndex]
@@ -307,9 +321,9 @@ local function main(e)
     end
 end
 
-local function initialized()
+local function loaded()
     
     event.register(tes3.event.keyDown, main)
 end
 
-event.register(tes3.event.initialized, initialized)
+event.register(tes3.event.loaded, loaded)
